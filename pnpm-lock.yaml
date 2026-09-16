@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@good-shepherd-insights/website-components': link:../website-components-template
+  '@good-shepherd-insights/website-components': link:../wright-way-components
 
 importers:
 
@@ -18,8 +18,8 @@ importers:
         specifier: ^3.7.3
         version: 3.7.4
       '@good-shepherd-insights/website-components':
-        specifier: link:../website-components-template
-        version: link:../website-components-template
+        specifier: link:../wright-way-components
+        version: link:../wright-way-components
       '@payloadcms/live-preview':
         specifier: ^3.88.0
         version: 3.88.0

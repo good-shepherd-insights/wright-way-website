@@ -28,3 +28,32 @@ video {
 #main-content:focus {
   outline: none;
 }
+
+/* Real fix: this had no CSS anywhere in the codebase (verified directly,
+   every .css/.astro/.ts/.tsx file) and rendered as plain visible text
+   permanently instead of the standard hidden-until-keyboard-focus
+   skip-navigation link. The markup lives in PageView.astro (website page
+   chrome, not a shared component), so this belongs here, not in
+   wright-way-components. */
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 9999;
+
+  padding: 0.75rem 1rem;
+  border: 2px solid #fff;
+  border-radius: 0.375rem;
+  background: #111827;
+  color: #fff;
+
+  transform: translateY(-200%);
+  transition: transform 150ms ease;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 3px solid #fbbf24;
+  outline-offset: 3px;
+}
