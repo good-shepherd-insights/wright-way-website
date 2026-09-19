@@ -1,12 +1,18 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import { loadEnv } from 'vite';
 
 import sitemap from '@astrojs/sitemap';
 import react from '@astrojs/react';
 
+// .env files are not loaded automatically inside astro.config.mjs — Vite only
+// applies that to application code. Per the Astro docs, load them explicitly:
+// https://docs.astro.build/en/guides/environment-variables/#in-the-astro-config-file
+const env = loadEnv(process.env.NODE_ENV ?? '', process.cwd(), '');
+
 /** @param {string} name */
 function requiredEnv(name) {
-  const value = process.env[name]?.trim();
+  const value = env[name]?.trim();
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
   return value;
 }
