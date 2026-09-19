@@ -52,11 +52,9 @@ const languageAlternates = [
     <meta name="theme-color" content="#ffffff" />
     <link rel="icon" href={favicon} type="image/svg+xml" />
     <link rel="apple-touch-icon" href={favicon} />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" />
-    {/* Ebony — the navbar's Call/Book Now/Our Services font — via the
-        Adobe Typekit kit id from the Figma file's own dev-mode export. */}
+    {/* Ebony — the sitewide font — via the Adobe Typekit kit id from the
+        Figma file's own dev-mode export. Google Fonts (Inter) removed:
+        no component uses it anymore, every text element uses ebony. */}
     <link rel="stylesheet" href="https://use.typekit.net/nwu5mhu.css" />
     <SEO
       title={title}
@@ -95,6 +93,8 @@ const languageAlternates = [
     <script type="application/ld+json" is:inline set:html={serializeJsonLd(jsonLd)} />
   </head>
   <body>
+    <slot name="navbar" />
     <slot />
+    <slot name="footer" />
   </body>
 </html>

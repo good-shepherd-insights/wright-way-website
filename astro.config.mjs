@@ -74,7 +74,7 @@ export default defineConfig({
       noExternal: ['@good-shepherd-insights/website-components'],
     },
     server: {
-      allowedHosts: ['website-template.goodshepherdinsights.com'],
+      allowedHosts: ['wrightway-website.goodshepherdinsights.com'],
     },
   },
 });

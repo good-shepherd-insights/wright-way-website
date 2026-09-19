@@ -13,7 +13,7 @@ export interface Media {
 // A curated entry resolves (depth=2) to the full Components document;
 // `sections` is the renderable content inside it.
 export type CuratedComponent = {
-  component: { sections?: PageSection[] | null } | number | null;
+  component: { id: string | number; sections?: PageSection[] | null } | number | null;
 };
 
 function curatedSections(entry: CuratedComponent): PageSection[] {
@@ -23,14 +23,7 @@ function curatedSections(entry: CuratedComponent): PageSection[] {
 }
 
 export interface SiteGlobals {
-  brand: { logo?: Media; logoAlt: string; favicon?: Media };
-  accessibility: {
-    primaryNavLabel: string;
-    homeLinkSuffix: string;
-    skipToContentLabel?: string | null;
-    menuLabel?: string | null;
-    languageSwitchAriaLabelTemplate?: string | null;
-  };
+  brand: { logo?: Media; logoAlt?: string; favicon?: Media };
   components: CuratedComponent[];
 }
 
@@ -45,6 +38,9 @@ export type Page = {
   title: string;
   metadata: { titleTemplate: string };
   sections: PageSection[];
+  // Global components (SiteGlobals.components, by their Sections document
+  // id) to hide on this page only — everything else there still renders.
+  hiddenGlobalComponents?: (string | number)[];
 };
 
 function requiredEnv(name: string): string {

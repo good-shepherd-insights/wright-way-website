@@ -1,4 +1,4 @@
 allowBuilds:
   esbuild: true
 overrides:
-  '@good-shepherd-insights/website-components': link:../website-components-template
+  '@good-shepherd-insights/website-components': link:../wright-way-components
