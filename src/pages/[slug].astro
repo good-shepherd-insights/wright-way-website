@@ -1,0 +1,21 @@
+---
+import PageView from "../components/PageView.astro";
+import { i18n } from "astro:config/client";
+import { getPage, getPages } from "../lib/payload";
+
+export async function getStaticPaths() {
+  if (!i18n) throw new Error("astro:config/client has no i18n config — check astro.config.mjs's i18n block.");
+  const { defaultLocale } = i18n;
+  const pages = await getPages(defaultLocale);
+  return pages.filter((page) => page.slug !== "home").map((page) => ({ params: { slug: page.slug } }));
+}
+
+if (!i18n) throw new Error("astro:config/client has no i18n config — check astro.config.mjs's i18n block.");
+const { defaultLocale } = i18n;
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect("/404");
+const page = await getPage(slug, defaultLocale);
+if (!page) return Astro.redirect("/404");
+---
+
+<PageView locale={defaultLocale} slug={slug} page={page} />
