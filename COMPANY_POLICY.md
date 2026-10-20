@@ -28,7 +28,7 @@ This policy is mandatory. Violations are blocking issues.
 
 1. This repo is the public Astro website only.
 2. Payload supplies page content, media, navigation, localized data, live preview data, and favicon data — via the site global (slug from `SITE_GLOBAL_SLUG`, site chrome) and the `pages` collection (per-page content), see `src/lib/payload.ts`.
-3. Preserve `/` (default-locale home) and the `/<locale>/` route shape.
+3. Default-locale pages (home and every other page) are unprefixed (`/`, `/<slug>`). Non-default locales use `/<locale>/` and `/<locale>/<slug>/`. Matches Astro's own `prefixDefaultLocale: false` i18n strategy (`pathname-prefix-other-locales`) — the app's routing must not fight that config.
 4. Keep locale entrypoints thin; shared page assembly belongs in `src/components/PageView.astro`, used for every page.
 5. Keep the Payload boundary in `src/lib/payload.ts`.
 6. Preserve existing `data-inline-edit`, `data-live-sync-bg`, and `data-live-sync-alt` behavior.
