@@ -14,7 +14,7 @@
   "dependencies": {
     "@astrojs/react": "^6.0.5",
     "@astrojs/sitemap": "^3.7.3",
-    "@good-shepherd-insights/website-components": "^0.1.0",
+    "@good-shepherd-insights/website-components": "npm:@good-shepherd-insights/wright-way-components@^0.1.0",
     "@payloadcms/live-preview": "^3.88.0",
     "astro": "^7.2.4",
     "astro-seo": "^1.1.0",

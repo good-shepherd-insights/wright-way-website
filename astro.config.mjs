@@ -71,13 +71,13 @@ export default defineConfig({
     react(),
   ],
   vite: {
-    // Locally-linked packages (pnpm link, before @good-shepherd-insights/website-components
-    // is published) are treated as external SSR modules by default, and Vite doesn't
-    // apply its CSS-import handling to those — causing "Could not import ./styles.css"
-    // for the package's component styles. Remove this once the package is published
-    // and installed normally; a real node_modules install doesn't need it.
-    ssr: {
-      noExternal: ['@good-shepherd-insights/website-components'],
+    // The components package imports its own styles.css files. Vite treats
+    // node_modules packages as external SSR modules by default, leaving those
+    // imports to Node, which can't load .css ("Unknown file extension .css").
+    // Bundling the package lets Vite handle the CSS. It's installed under an
+    // alias, so match both the import name and the published package name.
+    resolve: {
+      noExternal: ['@good-shepherd-insights/website-components', '@good-shepherd-insights/wright-way-components'],
     },
     server: {
       allowedHosts: ['wrightway-website.goodshepherdinsights.com'],
