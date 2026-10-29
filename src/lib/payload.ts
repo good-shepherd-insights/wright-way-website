@@ -23,7 +23,7 @@ function curatedSections(entry: CuratedComponent): PageSection[] {
 }
 
 export interface SiteGlobals {
-  brand: { logo?: Media; logoAlt?: string; favicon?: Media };
+  brand: { logo?: Media; logoAlt?: string; favicon?: Media; ogImage?: Media };
   components: CuratedComponent[];
 }
 
@@ -73,6 +73,9 @@ function absolutizeSiteChromeUrls(page: SiteGlobals): SiteGlobals {
   }
   if (page.brand?.favicon?.url) {
     page.brand.favicon.url = new URL(page.brand.favicon.url, cmsOrigin).toString();
+  }
+  if (page.brand?.ogImage?.url) {
+    page.brand.ogImage.url = new URL(page.brand.ogImage.url, cmsOrigin).toString();
   }
   for (const entry of page.components ?? []) {
     for (const section of curatedSections(entry)) {

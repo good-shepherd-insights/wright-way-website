@@ -39,7 +39,7 @@ const navbarEntries = globalSectionEntries.filter(({ section }) => section.block
 const footerEntries = globalSectionEntries.filter(({ section }) => section.blockType !== "navbar");
 ---
 
-<Layout title={title} description={content.title} locale={locale} favicon={site.brand.favicon?.url} image={site.brand.logo?.url} imageAlt={site.brand.logoAlt ?? ""} jsonLd={{}}>
+<Layout title={title} description={content.title} locale={locale} favicon={site.brand.favicon?.url} image={site.brand.ogImage?.url ?? site.brand.logo?.url} imageAlt={(site.brand.ogImage ? site.brand.ogImage.alt : site.brand.logoAlt) ?? ""} jsonLd={{}}>
   <Fragment slot="navbar">
     {skipToContentLabel && <a class="skip-link" href="#main-content">{skipToContentLabel}</a>}
     {navbarEntries.map(({ componentIndex, sectionIndex, section }) => {
