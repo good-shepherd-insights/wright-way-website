@@ -15,8 +15,8 @@ importers:
         specifier: ^3.7.3
         version: 3.7.4
       '@good-shepherd-insights/website-components':
-        specifier: npm:@good-shepherd-insights/wright-way-components@^0.1.2
-        version: '@good-shepherd-insights/wright-way-components@0.1.2(payload@3.92.1(graphql@16.14.2)(typescript@6.0.3))(react@19.3.0)'
+        specifier: npm:@good-shepherd-insights/wright-way-components@^0.1.3
+        version: '@good-shepherd-insights/wright-way-components@0.1.3(payload@3.92.1(graphql@16.14.2)(typescript@6.0.3))(react@19.3.0)'
       '@payloadcms/live-preview':
         specifier: ^3.88.0
         version: 3.88.0
@@ -503,8 +503,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@good-shepherd-insights/wright-way-components@0.1.2':
-    resolution: {integrity: sha512-kB6WVya3G7efebSnejN60Bnl8yTQU6WpGNbR7Nd9weeC2wSdIHfODT3BNNJa5HOJT2MeAijfbN+JqIeB3xlyAA==, tarball: https://npm.pkg.github.com/download/@good-shepherd-insights/wright-way-components/0.1.2/af620320465552f5786d39c86a2b4e86e2598733}
+  '@good-shepherd-insights/wright-way-components@0.1.3':
+    resolution: {integrity: sha512-Izuz98RkaqtDwe0EGtFAsjH1fhuTqQZgLleQ2N/twSp1JHYNmOr5gUDc/DYwDZcOez/mWsG9/7tNCO2hq6AEDQ==, tarball: https://npm.pkg.github.com/download/@good-shepherd-insights/wright-way-components/0.1.3/53509fe9b01ca7c89747a7dc56e80d2870179b18}
     engines: {node: '>=20.9.0', pnpm: '>=9'}
     peerDependencies:
       payload: ^3.88.0
@@ -2716,7 +2716,7 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@good-shepherd-insights/wright-way-components@0.1.2(payload@3.92.1(graphql@16.14.2)(typescript@6.0.3))(react@19.3.0)':
+  '@good-shepherd-insights/wright-way-components@0.1.3(payload@3.92.1(graphql@16.14.2)(typescript@6.0.3))(react@19.3.0)':
     dependencies:
       payload: 3.92.1(graphql@16.14.2)(typescript@6.0.3)
       react: 19.3.0
