@@ -1,2 +1,4 @@
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - '@good-shepherd-insights/wright-way-components@0.1.1'
