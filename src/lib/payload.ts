@@ -63,6 +63,7 @@ export const cmsOrigin = requiredOrigin("CMS_ORIGIN");
 export const globalSlug = requiredEnv("SITE_GLOBAL_SLUG");
 export const PAGE_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+
 function absolutizeSiteChromeUrls(page: SiteGlobals): SiteGlobals {
   // Payload returns media `url` as a path relative to its own origin. Both
   // fields are required in the CMS schema but may still be briefly unset
@@ -96,7 +97,13 @@ export async function getSiteGlobals(locale: string): Promise<SiteGlobals> {
     );
   }
 
-  return absolutizeSiteChromeUrls(await res.json());
+  const site = await res.json() as SiteGlobals;
+  // Anonymous reads only return published content: a never-published site
+  // global comes back empty. Say so instead of failing later in rendering.
+  if (!Array.isArray(site.components)) {
+    throw new Error(`Site global "${globalSlug}" (locale "${locale}") has no published version. Publish it in the CMS.`);
+  }
+  return absolutizeSiteChromeUrls(site);
 }
 
 function absolutizePageMediaUrls(page: Page): Page {
@@ -172,4 +179,37 @@ export async function getPages(locale: string): Promise<Page[]> {
 export async function getPage(slug: string, locale: string): Promise<Page | null> {
   if (!PAGE_SLUG_PATTERN.test(locale) || !PAGE_SLUG_PATTERN.test(slug) || slug.length > 80) return null;
   return (await fetchPages(locale, slug))[0] ?? null;
+}
+
+// Preview only (src/pages/preview.astro): reads the latest draft of one page by
+// slug, plus the draft site global (with its global components), with the
+// editor's login token that the CMS put in the preview URL. Reports why it
+// failed so the editor sees a clear message.
+export type PreviewResult =
+  | { ok: true; locale: string; page: Page; site: SiteGlobals }
+  | { ok: false; reason: "expired" | "unavailable" };
+
+export async function getPreview(slug: string | null, locale: string | null, token: string | null): Promise<PreviewResult> {
+  if (!slug || !locale || !token) return { ok: false, reason: "expired" };
+  const headers = { Authorization: `JWT ${token}` };
+  const query = (depth: string) => new URLSearchParams({ draft: "true", depth, locale, "fallback-locale": "none" });
+  try {
+    // Payload treats an expired or invalid token as anonymous instead of
+    // rejecting it, which would silently show published content. Check it first.
+    const meRes = await fetch(`${cmsOrigin}/api/users/me`, { headers });
+    if (!meRes.ok) return { ok: false, reason: "unavailable" };
+    const me = await meRes.json() as { user?: unknown };
+    if (!me.user) return { ok: false, reason: "expired" };
+    const [pageRes, siteRes] = await Promise.all([
+      fetch(`${cmsOrigin}/api/pages?${query("1")}&${new URLSearchParams({ "where[slug][equals]": slug, limit: "1" })}`, { headers }),
+      fetch(`${cmsOrigin}/api/globals/${globalSlug}?${query("2")}`, { headers }),
+    ]);
+    if ([pageRes.status, siteRes.status].some((status) => status === 401 || status === 403)) return { ok: false, reason: "expired" };
+    if (!pageRes.ok || !siteRes.ok) return { ok: false, reason: "unavailable" };
+    const page = ((await pageRes.json()) as { docs?: Page[] }).docs?.[0];
+    if (!page) return { ok: false, reason: "unavailable" };
+    return { ok: true, locale, page: absolutizePageMediaUrls(page), site: absolutizeSiteChromeUrls(await siteRes.json()) };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
 }

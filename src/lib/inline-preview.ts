@@ -1,4 +1,4 @@
-import { ready, isLivePreviewEvent, mergeData } from "@payloadcms/live-preview";
+import { ready, isLivePreviewEvent, mergeData, type CollectionPopulationRequestHandler } from "@payloadcms/live-preview";
 import type { SiteGlobals, Page } from "./payload";
 
 // Frontend half of the click-to-edit bridge (see the CMS repo's src/admin/InlinePreviewBridge.tsx
@@ -7,10 +7,13 @@ import type { SiteGlobals, Page } from "./payload";
 // this code path.
 //
 // Two independent things happen here, both driven by data attributes:
-//  - `data-inline-edit="a.b.c"` elements: editable text, two-way. Typing
-//    saves to Payload as a draft and mirrors into the admin sidebar form.
-//  - `data-live-sync="a.b.c"` elements: read-only, one-way (admin -> page).
-//    Used for the two image fields, which aren't click-to-edit here.
+//  - `data-inline-edit="a.b.c"` elements: editable text, two-way. Typing goes
+//    into the admin's form for the open page (as if typed in its sidebar);
+//    the editor saves it with Save draft / Publish.
+//  - `data-inline-image="a.b.c"` elements (an <img> or an element with a
+//    background photo): clicking opens the CMS media picker for that image
+//    field; the new image shows here once picked.
+//  - `data-live-sync-*="a.b.c"` elements: read-only, one-way (admin -> page).
 
 type JSONValue = unknown;
 
@@ -24,39 +27,16 @@ function getPath(obj: JSONValue, path: string): JSONValue {
     );
 }
 
-function setPath(obj: JSONValue, path: string[], value: JSONValue): void {
-  const [key, ...rest] = path;
-  const record = obj as Record<string, JSONValue>;
-  if (rest.length === 0) {
-    record[key] = value;
-    return;
-  }
-  setPath(record[key], rest, value);
-}
-
-/** Builds a minimal partial-update payload by cloning the current top-level
- * group from tracked live data and mutating just the one leaf that changed —
- * required for array fields, since Payload replaces the whole array on
- * update rather than merging by index. */
-function buildSavePayload(liveData: JSONValue, path: string, value: string) {
-  const segments = path.split(".");
-  const [topKey, ...rest] = segments;
-  const clone = structuredClone(getPath(liveData, topKey));
-  setPath({ [topKey]: clone }, [topKey, ...rest], value);
-  return { [topKey]: clone };
-}
-
 interface InlinePreviewOptions {
   serverURL: string;
   initialData: SiteGlobals | Page;
   locale: string;
   globalSlug: string;
   collection?: "globals" | "pages";
-  id?: string | number;
   initialGlobalData?: SiteGlobals;
 }
 
-export function initInlinePreview({ serverURL, initialData, locale, globalSlug, collection = "globals", id, initialGlobalData }: InlinePreviewOptions) {
+export function initInlinePreview({ serverURL, initialData, locale, globalSlug, collection = "globals", initialGlobalData }: InlinePreviewOptions) {
   const embedded = window.parent !== window || Boolean(window.opener);
   if (!embedded) return;
 
@@ -67,14 +47,56 @@ export function initInlinePreview({ serverURL, initialData, locale, globalSlug, 
     resolvedServerURL = serverURL;
   }
 
+  // Fixed UI chrome, not CMS content: tells the editor when edits stop working.
+  const showPreviewError = (message: string) => {
+    let bar = document.querySelector<HTMLElement>("[data-preview-error]");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.dataset.previewError = "";
+      bar.setAttribute("role", "alert");
+      Object.assign(bar.style, { position: "fixed", inset: "0 0 auto 0", zIndex: "2147483647", padding: "12px 16px", background: "#b00020", color: "#fff", font: "600 14px/1.4 system-ui" });
+      document.body.prepend(bar);
+    }
+    bar.textContent = message;
+  };
+  const EXPIRED = "Your CMS session has expired. The preview is no longer updating. Reload it in the CMS.";
+  const isAuthFailure = (status: number) => status === 401 || status === 403;
+
+  // The editor's token, handed over by the CMS admin (InlinePreviewBridge).
+  // This page is on another domain, so the CMS session cookie is never sent;
+  // every CMS call authenticates with this header instead. Only accepted from
+  // the parent window at the CMS origin, and kept in memory only.
+  let token: string | undefined;
+  let gotFirstToken!: () => void;
+  const firstToken = new Promise<void>((resolve) => (gotFirstToken = resolve));
+  const authHeaders = async () => {
+    await firstToken;
+    return { Authorization: `JWT ${token}` };
+  };
+  const handleAuth = (event: MessageEvent<{ type?: string; token?: string }>) => {
+    const parentWindow = window.parent !== window ? window.parent : window.opener;
+    if (event.source !== parentWindow || event.origin !== resolvedServerURL) return;
+    if (event.data?.type !== "payload-preview-auth" || typeof event.data.token !== "string") return;
+    token = event.data.token;
+    gotFirstToken();
+  };
+  window.addEventListener("message", handleAuth);
+  // mergeData's default request handler relies on the cookie; send the header instead.
+  const requestHandler: CollectionPopulationRequestHandler = async ({ apiPath, data, endpoint, serverURL: base }) => {
+    const res = await fetch(`${base}${apiPath}/${endpoint}`, {
+      method: "POST",
+      headers: { ...(await authHeaders()), "Content-Type": "application/json", "X-Payload-HTTP-Method-Override": "GET" },
+      body: JSON.stringify(data),
+    });
+    if (isAuthFailure(res.status)) showPreviewError(EXPIRED);
+    return res;
+  };
+
   let liveData: SiteGlobals | Page = initialData;
   let globalData = initialGlobalData;
-  let unsavedPagePreview = false;
-  const saveTimers = new Map<string, number>();
-  const isGlobalPath = (path: string) => /^(brand|accessibility)\./.test(path);
-  // Sections belong to the page; everything else (brand, accessibility,
-  // components) resolves against the site global's data.
-  const globalFor = (path: string) => (isGlobalPath(path) || !path.startsWith("sections.") ? globalData ?? liveData : liveData);
+  const editTimers = new Map<string, number>();
+  // Sections belong to the page; components resolve against the site global's data.
+  const globalFor = (path: string) => (path.startsWith("sections.") ? liveData : globalData ?? liveData);
   // Component-owned edit paths are authored as
   // components.N.component.M.<field> (N = curation row, M = section index in
   // the resolved document). The depth-resolved global data stores the
@@ -89,6 +111,17 @@ export function initInlinePreview({ serverURL, initialData, locale, globalSlug, 
       const path = el.dataset.inlineEdit!;
       const value = getLiveValue(path);
       if (typeof value === "string" && el.textContent !== value) el.textContent = value;
+    });
+
+    document.querySelectorAll<HTMLElement>("[data-inline-image]").forEach((el) => {
+      const value = getLiveValue(`${el.dataset.inlineImage}.url`);
+      if (typeof value !== "string") return;
+      const url = new URL(value, resolvedServerURL).toString();
+      if (el instanceof HTMLImageElement) {
+        if (el.src !== url) el.src = url;
+      } else {
+        el.style.backgroundImage = `url(${url})`;
+      }
     });
 
     document.querySelectorAll<HTMLElement>("[data-live-sync-bg]").forEach((el) => {
@@ -127,7 +160,7 @@ export function initInlinePreview({ serverURL, initialData, locale, globalSlug, 
   // subscribe() call on the page, and each subscribe() call resets it. Two
   // simultaneous subscriptions here (page + global) clobbered each other's
   // cache, so a page-edit broadcast could get merged against stale global
-  // data with no `.id`, producing saves to `/api/pages/undefined` (500).
+  // data with no `.id`.
   // Fixed by driving the merge manually with the package's stateless pieces
   // (isLivePreviewEvent, mergeData) against our own two local caches
   // (liveData, globalData) instead of the package's shared one.
@@ -140,12 +173,12 @@ export function initInlinePreview({ serverURL, initialData, locale, globalSlug, 
     };
 
     if (collection === "pages" && collectionSlug === "pages") {
-      liveData = await mergeData({ serverURL: resolvedServerURL, collectionSlug, depth: 1, incomingData: data, initialData: liveData, locale });
+      liveData = await mergeData({ serverURL: resolvedServerURL, collectionSlug, depth: 1, incomingData: data, initialData: liveData, locale, requestHandler });
       patchDOM();
     }
 
     if (globalData && incomingGlobalSlug === globalSlug) {
-      globalData = await mergeData({ serverURL: resolvedServerURL, globalSlug: incomingGlobalSlug, depth: 1, incomingData: data, initialData: globalData, locale });
+      globalData = await mergeData({ serverURL: resolvedServerURL, globalSlug: incomingGlobalSlug, depth: 1, incomingData: data, initialData: globalData, locale, requestHandler });
       patchDOM();
     }
   };
@@ -157,7 +190,6 @@ export function initInlinePreview({ serverURL, initialData, locale, globalSlug, 
     if (event.source !== parentWindow || event.data?.type !== "payload-live-preview" || !event.data.data) return;
     if (collection === "pages" && event.data.collectionSlug === "pages") {
       liveData = event.data.data;
-      unsavedPagePreview = !("id" in event.data.data) || !event.data.data.id;
       patchDOM();
     }
     if (collection === "globals" && event.data.globalSlug === globalSlug) {
@@ -167,46 +199,38 @@ export function initInlinePreview({ serverURL, initialData, locale, globalSlug, 
   };
   window.addEventListener("message", handlePayloadPreview);
 
-  const saveField = async (path: string, value: string) => {
-    if (collection === "pages" && (unsavedPagePreview || !id)) return;
+  // Only fields of the page open in the admin are editable, and an edit goes
+  // into that page's admin form. Navbar/footer text belongs to other documents
+  // (global components) and is edited by opening those.
+  const isPageField = (path: string) => collection === "pages" && path.startsWith("sections.");
+  const sendToForm = (path: string, value: string) => {
     const parentWindow = window.parent !== window ? window.parent : window.opener;
-    // Sections of the page mirror into the admin sidebar form; global-owned
-    // fields (brand, accessibility, components) don't.
-    if (!isGlobalPath(path) && path.startsWith("sections.")) parentWindow?.postMessage({ type: "payload-inline-edit", path, value }, resolvedServerURL);
-
-    // Components are curated on the site global, so component-owned paths
-    // save to the global, not the page. Save payload paths must match the
-    // CMS document shape (components.N.component.M.<field> →
-    // components.N.component.sections.M.<field>).
-    const savePath = unwrapComponentPath(path);
-    const endpoint = savePath.startsWith("sections.")
-      ? collection === "pages" && id
-        ? `/api/pages/${id}`
-        : `/api/globals/${globalSlug}`
-      : `/api/globals/${globalSlug}`;
-    const source = savePath.startsWith("sections.") && !isGlobalPath(savePath) ? liveData : globalData ?? liveData;
-    const response = await fetch(
-      `${resolvedServerURL}${endpoint}?draft=true&autosave=true&locale=${locale}`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildSavePayload(source, savePath, value)),
-      },
-    );
-
-    const el = document.querySelector<HTMLElement>(`[data-inline-edit="${path}"]`);
-    if (!response.ok) {
-      if (el) el.dataset.inlineEditError = "true";
-      console.error(`Inline edit save failed with ${response.status} for "${path}".`);
-      return;
-    }
-    if (el) delete el.dataset.inlineEditError;
+    parentWindow?.postMessage({ type: "payload-inline-edit", path, value }, resolvedServerURL);
   };
 
   document.querySelectorAll<HTMLElement>("[data-inline-edit]").forEach((el) => {
+    if (!isPageField(el.dataset.inlineEdit!)) return;
     el.contentEditable = "true";
     el.spellcheck = true;
+  });
+
+  document.querySelectorAll<HTMLElement>("[data-inline-image]").forEach((el) => {
+    if (!isPageField(el.dataset.inlineImage!)) return;
+    el.style.cursor = "pointer";
+    el.title = "Click to change image";
+  });
+
+  // A click on a page image (not on text or a link inside it) opens the CMS
+  // media picker for that image field.
+  document.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("[data-inline-edit], a, button")) return;
+    const image = target.closest<HTMLElement>("[data-inline-image]");
+    const path = image?.dataset.inlineImage;
+    if (!path || !isPageField(path)) return;
+    event.preventDefault();
+    const parentWindow = window.parent !== window ? window.parent : window.opener;
+    parentWindow?.postMessage({ type: "payload-inline-image", path }, resolvedServerURL);
   });
 
   // Editable spans can sit inside <a> — without this, clicking to place a
@@ -218,22 +242,23 @@ export function initInlinePreview({ serverURL, initialData, locale, globalSlug, 
 
   document.addEventListener("input", (event) => {
     const target = (event.target as HTMLElement).closest<HTMLElement>("[data-inline-edit]");
-    if (!target) return;
+    if (!target?.isContentEditable) return;
     const path = target.dataset.inlineEdit!;
 
-    const existing = saveTimers.get(path);
+    const existing = editTimers.get(path);
     if (existing) window.clearTimeout(existing);
 
     const timer = window.setTimeout(() => {
-      saveTimers.delete(path);
-      void saveField(path, target.textContent ?? "");
+      editTimers.delete(path);
+      sendToForm(path, target.textContent ?? "");
     }, 500);
-    saveTimers.set(path, timer);
+    editTimers.set(path, timer);
   });
 
   ready({ serverURL: resolvedServerURL });
 
   return () => {
+    window.removeEventListener("message", handleAuth);
     window.removeEventListener("message", handleLivePreviewData);
     window.removeEventListener("message", handlePayloadPreview);
   };

@@ -3,9 +3,12 @@ import { buildSchemaIds } from "./ids";
 import { buildGraph } from "./graph";
 import { buildOrganizationSchema, buildWebsiteSchema } from "./organization";
 import { buildWebPageSchema } from "./webpage";
+import { buildSectionNodes } from "./sections";
+import type { PageSection } from "../payload";
 
-// The home page is the site's only route per locale, so no BreadcrumbList —
-// astro-seo-infra-readiness skill: "the home page does not need a breadcrumb."
+// Site nodes (WebSite, Organization, WebPage) plus nodes derived from the
+// page's own blocks (BreadcrumbList, FAQPage, Service + areaServed) — see
+// sections.ts. The home page has no breadcrumb block, so it gets none.
 export function buildSiteGraph({
   page,
   canonical,
@@ -13,6 +16,7 @@ export function buildSiteGraph({
   title,
   description,
   locale,
+  sections = [],
 }: {
   page: SiteGlobals;
   canonical: string;
@@ -20,6 +24,7 @@ export function buildSiteGraph({
   title: string;
   description: string;
   locale: string;
+  sections?: PageSection[];
 }) {
   const ids = buildSchemaIds(canonical, baseUrl);
 
@@ -27,5 +32,6 @@ export function buildSiteGraph({
     buildWebsiteSchema(page, ids),
     buildOrganizationSchema(page, ids),
     buildWebPageSchema({ ids, name: title, description, inLanguage: locale }),
+    ...buildSectionNodes(sections, ids, title),
   ]);
 }
