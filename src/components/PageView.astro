@@ -1,18 +1,21 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import InlinePreviewBootstrap from "./InlinePreviewBootstrap.astro";
-import { getSiteGlobals, cmsOrigin as payloadURL, globalSlug as payloadGlobalSlug, type Page } from "../lib/payload";
+import { getSiteGlobals, cmsOrigin as payloadURL, globalSlug as payloadGlobalSlug, type Page, type SiteGlobals } from "../lib/payload";
 import { isSharedSection } from "@good-shepherd-insights/website-components/core";
 import { SectionRenderer } from "@good-shepherd-insights/website-components/react";
+import { buildSiteGraph } from "../lib/seo/schemaGraph";
 
 interface Props {
   locale: string;
   slug: string;
   page: Page;
+  // Preview passes the draft site global; the public build reads the published one.
+  site?: SiteGlobals;
 }
 
 const { locale, page: content } = Astro.props;
-const site = await getSiteGlobals(locale);
+const site = Astro.props.site ?? await getSiteGlobals(locale);
 const title = content.metadata.titleTemplate.replace("{title}", content.title);
 // Real, standard skip-navigation link text — not CMS content. The
 // SiteGlobals "accessibility" group this used to read from had 4 of its 5
@@ -35,11 +38,21 @@ const globalSectionEntries = site.components.flatMap((entry, componentIndex) => 
   if (hiddenIds.has(String(resolved.id))) return [];
   return (resolved.sections ?? []).map((section, sectionIndex) => ({ componentIndex, sectionIndex, section }));
 });
+const siteOrigin = Astro.site ?? Astro.url;
+const jsonLd = buildSiteGraph({
+  page: site,
+  canonical: new URL(Astro.url.pathname, siteOrigin).toString(),
+  baseUrl: new URL("/", siteOrigin).toString(),
+  title,
+  description: content.title,
+  locale,
+  sections: content.sections,
+});
 const navbarEntries = globalSectionEntries.filter(({ section }) => section.blockType === "navbar");
 const footerEntries = globalSectionEntries.filter(({ section }) => section.blockType !== "navbar");
 ---
 
-<Layout title={title} description={content.title} locale={locale} favicon={site.brand.favicon?.url} image={site.brand.ogImage?.url ?? site.brand.logo?.url} imageAlt={(site.brand.ogImage ? site.brand.ogImage.alt : site.brand.logoAlt) ?? ""} jsonLd={{}}>
+<Layout title={title} description={content.title} locale={locale} favicon={site.brand.favicon?.url} image={site.brand.ogImage?.url ?? site.brand.logo?.url} imageAlt={(site.brand.ogImage ? site.brand.ogImage.alt : site.brand.logoAlt) ?? ""} jsonLd={jsonLd}>
   <Fragment slot="navbar">
     {skipToContentLabel && <a class="skip-link" href="#main-content">{skipToContentLabel}</a>}
     {navbarEntries.map(({ componentIndex, sectionIndex, section }) => {
@@ -78,4 +91,4 @@ const footerEntries = globalSectionEntries.filter(({ section }) => section.block
   </Fragment>
 </Layout>
 
-<InlinePreviewBootstrap collection="pages" id={content.id} initialData={content} initialGlobalData={site} locale={locale} globalSlug={payloadGlobalSlug} />
+<InlinePreviewBootstrap collection="pages" initialData={content} initialGlobalData={site} locale={locale} globalSlug={payloadGlobalSlug} />

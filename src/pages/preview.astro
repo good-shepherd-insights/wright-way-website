@@ -1,0 +1,23 @@
+---
+// Live preview of the latest draft of one page, rendered on request (the only
+// route that is). The CMS links here with the page slug, locale and the editor's
+// login token; see getPreview in src/lib/payload.ts. Never indexed.
+export const prerender = false;
+import PageView from "../components/PageView.astro";
+import { getPreview } from "../lib/payload";
+
+const params = Astro.url.searchParams;
+const result = await getPreview(params.get("slug"), params.get("locale"), params.get("token"));
+if (!result.ok) {
+  // Fixed UI chrome, not CMS content.
+  const message = result.reason === "expired"
+    ? "Your CMS session has expired. Reload the preview in the CMS to continue."
+    : "The preview couldn't load the latest draft from the CMS. Reload the preview to try again.";
+  return new Response(
+    `<!doctype html><meta charset="utf-8"><title>Preview unavailable</title><main role="alert" style="font:16px/1.5 system-ui;padding:24px">${message}</main>`,
+    { status: result.reason === "expired" ? 401 : 502, headers: { "Content-Type": "text/html; charset=utf-8", "X-Robots-Tag": "noindex" } },
+  );
+}
+Astro.response.headers.set("X-Robots-Tag", "noindex");
+---
+<PageView locale={result.locale} slug={result.page.slug} page={result.page} site={result.site} />

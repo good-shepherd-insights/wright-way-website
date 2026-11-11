@@ -4,6 +4,7 @@ import { loadEnv } from 'vite';
 
 import sitemap from '@astrojs/sitemap';
 import react from '@astrojs/react';
+import vercel from '@astrojs/vercel';
 
 // .env files are not loaded automatically inside astro.config.mjs — Vite only
 // applies that to application code. Per the Astro docs, load them explicitly:
@@ -52,6 +53,7 @@ const { locales, defaultLocale } = await discoverLocales(cmsOrigin);
 // https://astro.build/config
 export default defineConfig({
   site: siteOrigin,
+  adapter: vercel(),
   i18n: {
     locales,
     defaultLocale,

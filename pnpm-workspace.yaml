@@ -2,3 +2,5 @@ allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
   - '@good-shepherd-insights/wright-way-components@0.1.3'
+  - '@good-shepherd-insights/wright-way-components@0.1.4'
+  - '@astrojs/vercel@11.0.21'

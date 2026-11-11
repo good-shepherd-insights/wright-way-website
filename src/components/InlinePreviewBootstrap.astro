@@ -3,15 +3,14 @@ import type { SiteGlobals, Page } from "../lib/payload";
 
 interface Props {
   collection?: "globals" | "pages";
-  id?: string | number;
   initialData: SiteGlobals | Page;
   initialGlobalData?: SiteGlobals;
   locale: string;
   globalSlug: string;
 }
 
-const { collection = "globals", id, initialData, initialGlobalData, locale, globalSlug } = Astro.props;
-const config = JSON.stringify({ collection, id, initialData, initialGlobalData, locale, globalSlug });
+const { collection = "globals", initialData, initialGlobalData, locale, globalSlug } = Astro.props;
+const config = JSON.stringify({ collection, initialData, initialGlobalData, locale, globalSlug });
 ---
 {/*
   Previously this data was passed to the bootstrap script via
@@ -40,9 +39,9 @@ const config = JSON.stringify({ collection, id, initialData, initialGlobalData, 
   const embedded = window.parent !== window || Boolean(window.opener);
 
   if (configEl && embedded && document.referrer) {
-    const { collection, id, initialData, initialGlobalData, locale, globalSlug } =
+    const { collection, initialData, initialGlobalData, locale, globalSlug } =
       JSON.parse(configEl.dataset.inlinePreviewConfig!);
     const serverURL = new URL(document.referrer).origin;
-    initInlinePreview({ serverURL, locale, initialData, initialGlobalData, collection, id, globalSlug });
+    initInlinePreview({ serverURL, locale, initialData, initialGlobalData, collection, globalSlug });
   }
 </script>
