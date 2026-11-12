@@ -64,7 +64,8 @@ async function buildIndex(locale: string): Promise<Doc[]> {
   const serviceDocs = await Promise.all(
     index.paths.map(async (p) => {
       const found = await getServicePage(p.collection, String(p.id), locale);
-      return found && !found.noindex ? docsFor(found.page, p.path) : [];
+      // Published pages are searchable on the site even while kept out of search engines.
+      return found ? docsFor(found.page, p.path) : [];
     }),
   );
   return [...pageDocs.flat(), ...serviceDocs.flat()];
