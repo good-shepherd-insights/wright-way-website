@@ -9,4 +9,5 @@ minimumReleaseAgeExclude:
   - '@good-shepherd-insights/wright-way-components@0.1.7'
   - '@good-shepherd-insights/wright-way-components@0.1.8'
   - '@good-shepherd-insights/wright-way-components@0.1.9'
+  - '@good-shepherd-insights/wright-way-components@0.1.10'
   - '@good-shepherd-insights/payload-plugin-services@0.1.0'
