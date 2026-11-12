@@ -8,7 +8,10 @@ export async function getStaticPaths() {
   if (!i18n) throw new Error("astro:config/client has no i18n config — check astro.config.mjs's i18n block.");
   const { defaultLocale } = i18n;
   const pages = await getPages(defaultLocale);
-  return pages.filter((page) => page.slug !== "home").map((page) => ({ params: { slug: page.slug } }));
+  // The search page (it holds the search results block) is served on request by search.astro.
+  return pages
+    .filter((page) => page.slug !== "home" && !page.sections.some((s) => s.blockType === "searchResults"))
+    .map((page) => ({ params: { slug: page.slug } }));
 }
 
 if (!i18n) throw new Error("astro:config/client has no i18n config — check astro.config.mjs's i18n block.");
