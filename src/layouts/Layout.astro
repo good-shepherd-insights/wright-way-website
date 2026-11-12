@@ -7,7 +7,8 @@ import { serializeJsonLd } from "../lib/seo/serializer";
 
 interface Props {
   title: string;
-  description: string;
+  // Absent: no meta, og or twitter description.
+  description?: string;
   locale: string;
   favicon?: string;
   image?: string;

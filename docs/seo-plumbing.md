@@ -14,39 +14,45 @@ orphaned frontend fields without a CMS source, no CMS fields nothing reads.
 | hreflang alternates (x-default + one per locale) | `astro:i18n`'s `getAbsoluteLocaleUrlList()`/`toCodes()`, reading `i18n` from `astro:config/client` — no locale ever hardcoded here, see "Locale discovery" below for where that config value actually comes from | Frontend (routing, not content) |
 | og:title / twitter:title | same as `<title>` | Payload (see title row) |
 | favicon | `brand.favicon.url` | Payload: SiteGlobals.brand.favicon |
-| robots meta | always `index, follow` (astro-seo default; no noindex/nofollow set anywhere) | Frontend (policy, not content) |
+| meta description / og:description / twitter:description | pages: `metadata.description`; services plugin pages: `meta.description` with its `{field}` placeholders filled (`src/lib/services.ts`). Empty or absent: all three tags are omitted (astro-seo skips an empty description); the title is never used in its place | Payload: Page.metadata.description, services `meta.description` |
+| robots meta | `index, follow` (astro-seo default), except `noindex, follow` on services plugin pair pages not set to index and on `/preview` | Payload: pair page `index` checkbox |
 
-**Gap:** description and social-image rows previously mapped to
-`hero.subhead`/`hero.image`/`footer.tagline` — fields that belonged to the
-removed tenant section set and exist in neither schema. `PageView.astro`
-passes `page.title` as the description and the brand logo as the social
-image; when a project registers its own blocks it should map its own
-description/social-image fields here.
+Services plugin pages take their `<title>` from `meta.title` (placeholders
+filled), or the entry's title when it is empty.
 
-## JSON-LD graph (src/lib/seo/*.ts, rendered in Layout.astro)
+## JSON-LD graph (src/lib/seo/schemaGraph.ts, rendered in Layout.astro)
+
+`schemaGraph.ts` is a thin call to `buildPageGraph` from
+`@good-shepherd-insights/website-components/core`. The CMS's SEO tab
+(every page and services plugin collection) calls the same function on the
+same data, so it shows exactly the JSON-LD this site publishes.
+`PageView.astro` passes it the page's canonical URL, title, description,
+locale, its sections plus the sitewide component sections it does not
+hide, and, for services plugin pages, `isServicePage` and the pair's
+`service`.
 
 | Node | Field | Source | Owner |
 |---|---|---|---|
 | WebSite | name | `brand.logoAlt` | Payload: SiteGlobals.brand.logoAlt |
 | WebSite | url | site origin | Frontend |
-| Organization | name | `brand.logoAlt` | Payload: SiteGlobals.brand.logoAlt |
-| Organization | logo | `brand.logo.url` + width/height | Payload: SiteGlobals.brand.logo |
+| business (`@id` …`#organization`) | @type | `business.schemaType`; empty: `Organization` | Payload: SiteGlobals.business |
+| business | name / logo | `brand.logoAlt` / `brand.logo.url` + width/height | Payload: SiteGlobals.brand |
+| business | description, telephone, email, address (PostalAddress), openingHoursSpecification, sameAs, priceRange, image (ImageObject) | the `business` group (Site Globals → Business tab); `business.image.url` is made absolute against the CMS in `payload.ts` like other media | Payload: SiteGlobals.business |
 | WebPage | name | page title (see metadata table) | Payload (see title row) |
+| WebPage | description | the meta description (see metadata table); absent when none is set | Payload |
 | WebPage | url / inLanguage | computed | Frontend (routing) |
 
-**Gap:** the WebSite/Organization/WebPage `description` fields previously
-sourced `hero.subhead`/`footer.tagline` (removed tenant fields); the
-builders currently emit no description until a project supplies its own.
+Empty business fields, and placeholder text (`[…]`, Lorem ipsum, TBD,
+Coming soon and the like), are left out, not published.
 
 Everything else comes from the page's sections: each component in
 `@good-shepherd-insights/website-components` that maps to schema.org exports
 `jsonLd` (BreadcrumbList, FAQPage, service description/areas/audiences/real
 prices, `makesOffer` service lists, `primaryImageOfPage`), and
-`schemaGraph.ts` merges them via `collectJsonLd` without naming any
-component. Pages from payload-plugin-services get a Service node holding
-the service facts (`mainEntity` of the WebPage); on other pages only the
-areas served are kept, on the Organization. Placeholder content produces
-nothing.
+`buildPageGraph` merges them without the website naming any component.
+Pages from payload-plugin-services get a Service node holding the service
+facts (`mainEntity` of the WebPage); on other pages only the areas served
+are kept, on the business node. Placeholder content produces nothing.
 
 ## Sitemap / robots
 
@@ -111,13 +117,6 @@ content-specific facts in code").
   an editor pick a purpose-built share image without changing page content.
   Wiring change needed if added: swap the social-image source in
   `src/components/PageView.astro`.
-- **Organization address / contact / social profiles (`sameAs`).** No
-  fields exist in the site global for a mailing address, phone, email, or
-  social media profile URLs. Adding an `organization` group (address
-  sub-fields, `email`, `telephone`, a repeatable `socialLinks` array of
-  URLs) would let `src/lib/seo/organization.ts`'s
-  `buildOrganizationSchema` emit `address`, `email`, `telephone`, and
-  `sameAs` — all currently correctly absent, not fabricated.
 
 ## Explicitly out of scope for this pass
 

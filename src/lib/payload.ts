@@ -22,8 +22,31 @@ function curatedSections(entry: CuratedComponent): PageSection[] {
   return resolved.sections ?? [];
 }
 
+export type Weekday = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
+
+// The site global's `business` group (CMS Site Globals → Business): facts
+// published as the business's structured data. Every field is optional.
+export interface Business {
+  schemaType?: "LocalBusiness" | "HomeAndConstructionBusiness" | "ProfessionalService" | "Organization" | null;
+  description?: string | null;
+  telephone?: string | null;
+  email?: string | null;
+  address?: {
+    streetAddress?: string | null;
+    addressLocality?: string | null;
+    addressRegion?: string | null;
+    postalCode?: string | null;
+    addressCountry?: string | null;
+  };
+  hours?: { days: Weekday[]; opens: string; closes: string; id?: string | null }[] | null;
+  sameAs?: { url: string; id?: string | null }[] | null;
+  priceRange?: string | null;
+  image?: Media | string | null;
+}
+
 export interface SiteGlobals {
   brand: { logo?: Media; logoAlt?: string; favicon?: Media; ogImage?: Media };
+  business?: Business;
   components: CuratedComponent[];
 }
 
@@ -36,7 +59,8 @@ export type Page = {
   id: string | number;
   slug: string;
   title: string;
-  metadata: { titleTemplate: string };
+  // description: meta description; empty or absent, none is published.
+  metadata: { titleTemplate: string; description?: string | null };
   sections: PageSection[];
   // Global components (SiteGlobals.components, by their Sections document
   // id) to hide on this page only — everything else there still renders.
@@ -77,6 +101,10 @@ function absolutizeSiteChromeUrls(page: SiteGlobals): SiteGlobals {
   }
   if (page.brand?.ogImage?.url) {
     page.brand.ogImage.url = new URL(page.brand.ogImage.url, cmsOrigin).toString();
+  }
+  const businessImage = page.business?.image;
+  if (businessImage && typeof businessImage === "object" && businessImage.url) {
+    businessImage.url = new URL(businessImage.url, cmsOrigin).toString();
   }
   for (const entry of page.components ?? []) {
     for (const section of curatedSections(entry)) {
