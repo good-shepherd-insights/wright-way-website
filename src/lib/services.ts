@@ -71,11 +71,41 @@ export function toServicePage(collection: string, doc: Doc, index: ServiceIndex)
     }
   }
 
-  const sections = resolveTokens(doc.sections ?? [], context);
+  const sections = localizeServiceLinks(resolveTokens(doc.sections ?? [], context), collection, doc, index);
   const title = resolveTokens(doc.meta?.title || doc.title, context);
   const description = doc.meta?.description ? resolveTokens(doc.meta.description, context) : undefined;
   const page: Page = { id: doc.id, slug: doc.slug ?? String(doc.id), title, metadata: { titleTemplate: "{title}" }, sections: [...sections, ...linkSections(collection, doc, index)] };
   return { page: absolutizePageMediaUrls(page), description, noindex, service };
+}
+
+// On a parent entry's page (e.g. a service area), a link to a child entry
+// (e.g. /services/junk-removal) goes to their published pair page instead
+// (e.g. /service-areas/frederick/junk-removal). Without a published pair
+// page the link stays on the child's own page, so it never breaks.
+function localizeServiceLinks(sections: PageSection[], collection: string, doc: Doc, index: ServiceIndex): PageSection[] {
+  const swap = new Map<string, string>();
+  for (const type of index.types) {
+    if (type.kind !== "combination" || type.parent !== collection || !type.child) continue;
+    const childPath = new Map(index.paths.filter((p) => p.kind === "entry" && p.collection === type.child).map((p) => [String(p.id), p.path]));
+    for (const pair of index.paths) {
+      if (pair.kind !== "combination" || pair.collection !== type.slug || String(pair.parent) !== String(doc.id)) continue;
+      const from = childPath.get(String(pair.child));
+      if (from) swap.set(from, pair.path);
+    }
+  }
+  if (swap.size === 0) return sections;
+  const trim = (href: string) => (href.length > 1 ? href.replace(/\/+$/, "") : href);
+  const walk = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(walk);
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        typeof item === "string" && /href$/i.test(key) && swap.has(trim(item)) ? swap.get(trim(item)) : walk(item),
+      ]),
+    );
+  };
+  return sections.map((section) => walk(section) as PageSection);
 }
 
 // Lists linking an entry to its published pair pages, under the headings set
