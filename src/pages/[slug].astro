@@ -2,6 +2,7 @@
 import PageView from "../components/PageView.astro";
 import { i18n } from "astro:config/client";
 import { getPage, getPages } from "../lib/payload";
+import { withHubLinks } from "../lib/services";
 
 export async function getStaticPaths() {
   if (!i18n) throw new Error("astro:config/client has no i18n config — check astro.config.mjs's i18n block.");
@@ -14,8 +15,10 @@ if (!i18n) throw new Error("astro:config/client has no i18n config — check ast
 const { defaultLocale } = i18n;
 const { slug } = Astro.params;
 if (!slug) return Astro.redirect("/404");
-const page = await getPage(slug, defaultLocale);
-if (!page) return Astro.redirect("/404");
+const found = await getPage(slug, defaultLocale);
+if (!found) return Astro.redirect("/404");
+// A hub page (e.g. /service-areas) lists its published entries.
+const page = await withHubLinks(found);
 ---
 
 <PageView locale={defaultLocale} slug={slug} page={page} />

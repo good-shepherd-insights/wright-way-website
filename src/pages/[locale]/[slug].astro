@@ -2,6 +2,7 @@
 import PageView from "../../components/PageView.astro";
 import { getLocales } from "../../lib/locales";
 import { getPage, getPages, PAGE_SLUG_PATTERN } from "../../lib/payload";
+import { withHubLinks } from "../../lib/services";
 
 export async function getStaticPaths() {
   const locales = await getLocales();
@@ -17,8 +18,10 @@ export async function getStaticPaths() {
 
 const { locale, slug } = Astro.params;
 if (!locale || !slug || slug === "home" || !PAGE_SLUG_PATTERN.test(locale) || !PAGE_SLUG_PATTERN.test(slug) || slug.length > 80) return Astro.redirect("/404");
-const page = await getPage(slug, locale);
-if (!page) return Astro.redirect("/404");
+const found = await getPage(slug, locale);
+if (!found) return Astro.redirect("/404");
+// A hub page (e.g. /service-areas) lists its published entries.
+const page = await withHubLinks(found);
 ---
 
 <PageView locale={locale} slug={slug} page={page} />

@@ -13,6 +13,8 @@ interface Props {
   image?: string;
   imageAlt: string;
   jsonLd: unknown;
+  // Keep out of search results ("noindex, follow"); links on it still count.
+  noindex?: boolean;
 }
 
 const {
@@ -23,6 +25,7 @@ const {
   image,
   imageAlt,
   jsonLd,
+  noindex = false,
 } = Astro.props;
 const siteOrigin = Astro.site ?? Astro.url;
 const canonicalURL = new URL(Astro.url.pathname, siteOrigin);
@@ -57,6 +60,7 @@ const languageAlternates = [
         no component uses it anymore, every text element uses ebony. */}
     <link rel="stylesheet" href="https://use.typekit.net/nwu5mhu.css" />
     <SEO
+      noindex={noindex}
       title={title}
       description={description}
       canonical={canonicalURL.toString()}

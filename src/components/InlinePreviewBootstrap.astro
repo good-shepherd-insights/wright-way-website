@@ -2,15 +2,16 @@
 import type { SiteGlobals, Page } from "../lib/payload";
 
 interface Props {
-  collection?: "globals" | "pages";
+  collection?: string;
+  documentGlobal?: string;
   initialData: SiteGlobals | Page;
   initialGlobalData?: SiteGlobals;
   locale: string;
   globalSlug: string;
 }
 
-const { collection = "globals", initialData, initialGlobalData, locale, globalSlug } = Astro.props;
-const config = JSON.stringify({ collection, initialData, initialGlobalData, locale, globalSlug });
+const { collection = "globals", documentGlobal, initialData, initialGlobalData, locale, globalSlug } = Astro.props;
+const config = JSON.stringify({ collection, documentGlobal, initialData, initialGlobalData, locale, globalSlug });
 ---
 {/*
   Previously this data was passed to the bootstrap script via
@@ -39,9 +40,9 @@ const config = JSON.stringify({ collection, initialData, initialGlobalData, loca
   const embedded = window.parent !== window || Boolean(window.opener);
 
   if (configEl && embedded && document.referrer) {
-    const { collection, initialData, initialGlobalData, locale, globalSlug } =
+    const { collection, documentGlobal, initialData, initialGlobalData, locale, globalSlug } =
       JSON.parse(configEl.dataset.inlinePreviewConfig!);
     const serverURL = new URL(document.referrer).origin;
-    initInlinePreview({ serverURL, locale, initialData, initialGlobalData, collection, globalSlug });
+    initInlinePreview({ serverURL, locale, initialData, initialGlobalData, collection, documentGlobal, globalSlug });
   }
 </script>

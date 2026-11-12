@@ -1,0 +1,21 @@
+---
+// Pages from payload-plugin-services at their CMS-defined URLs: service
+// entries (/<prefix>/<slug>) and services in areas (<area path>/<service slug>).
+// A page that is not indexed gets "noindex, follow" (and is left out of the sitemap).
+import PageView from "../components/PageView.astro";
+import { i18n } from "astro:config/client";
+import { getServiceIndex, getServicePage } from "../lib/services";
+
+export async function getStaticPaths() {
+  const { paths } = await getServiceIndex();
+  return paths.map(({ path, collection, id }) => ({ params: { service: path.slice(1) }, props: { collection, id: String(id) } }));
+}
+
+if (!i18n) throw new Error("astro:config/client has no i18n config — check astro.config.mjs's i18n block.");
+const { collection, id } = Astro.props as { collection: string; id: string };
+// Fetched here, not passed through getStaticPaths, so the dev server always shows the latest content.
+const result = await getServicePage(collection, id, i18n.defaultLocale);
+if (!result || result.page.sections.length === 0) return Astro.redirect("/404");
+---
+
+<PageView locale={i18n.defaultLocale} slug={result.page.slug} page={result.page} description={result.description} collection={collection} noindex={result.noindex} service={result.service} />

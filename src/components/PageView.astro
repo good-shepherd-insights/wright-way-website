@@ -5,6 +5,7 @@ import { getSiteGlobals, cmsOrigin as payloadURL, globalSlug as payloadGlobalSlu
 import { isSharedSection } from "@good-shepherd-insights/website-components/core";
 import { SectionRenderer } from "@good-shepherd-insights/website-components/react";
 import { buildSiteGraph } from "../lib/seo/schemaGraph";
+import { getServiceIndex, withNavbarAreas, type ServicePage } from "../lib/services";
 
 interface Props {
   locale: string;
@@ -12,6 +13,16 @@ interface Props {
   page: Page;
   // Preview passes the draft site global; the public build reads the published one.
   site?: SiteGlobals;
+  // CMS collection the page comes from (pages, or a service type), for the live-preview bridge.
+  collection?: string;
+  // A previewed global whose `sections` this page shows (a service type's globals).
+  documentGlobal?: string;
+  // Keep this page out of search results ("noindex, follow").
+  noindex?: boolean;
+  // Meta description (pages have none yet; service pages set it in the CMS).
+  description?: string;
+  // A service in a service area: its Service structured data.
+  service?: ServicePage["service"];
 }
 
 const { locale, page: content } = Astro.props;
@@ -44,15 +55,20 @@ const jsonLd = buildSiteGraph({
   canonical: new URL(Astro.url.pathname, siteOrigin).toString(),
   baseUrl: new URL("/", siteOrigin).toString(),
   title,
-  description: content.title,
+  description: Astro.props.description ?? content.title,
   locale,
   sections: content.sections,
+  service: Astro.props.service,
 });
-const navbarEntries = globalSectionEntries.filter(({ section }) => section.blockType === "navbar");
+// The navbar's service areas menu lists the published service areas.
+const serviceIndex = await getServiceIndex();
+const navbarEntries = globalSectionEntries
+  .filter(({ section }) => section.blockType === "navbar")
+  .map((entry) => ({ ...entry, section: withNavbarAreas(entry.section, serviceIndex) }));
 const footerEntries = globalSectionEntries.filter(({ section }) => section.blockType !== "navbar");
 ---
 
-<Layout title={title} description={content.title} locale={locale} favicon={site.brand.favicon?.url} image={site.brand.ogImage?.url ?? site.brand.logo?.url} imageAlt={(site.brand.ogImage ? site.brand.ogImage.alt : site.brand.logoAlt) ?? ""} jsonLd={jsonLd}>
+<Layout title={title} description={Astro.props.description ?? content.title} locale={locale} favicon={site.brand.favicon?.url} image={site.brand.ogImage?.url ?? site.brand.logo?.url} imageAlt={(site.brand.ogImage ? site.brand.ogImage.alt : site.brand.logoAlt) ?? ""} jsonLd={jsonLd} noindex={Astro.props.noindex}>
   <Fragment slot="navbar">
     {skipToContentLabel && <a class="skip-link" href="#main-content">{skipToContentLabel}</a>}
     {navbarEntries.map(({ componentIndex, sectionIndex, section }) => {
@@ -91,4 +107,4 @@ const footerEntries = globalSectionEntries.filter(({ section }) => section.block
   </Fragment>
 </Layout>
 
-<InlinePreviewBootstrap collection="pages" initialData={content} initialGlobalData={site} locale={locale} globalSlug={payloadGlobalSlug} />
+<InlinePreviewBootstrap collection={Astro.props.collection ?? "pages"} documentGlobal={Astro.props.documentGlobal} initialData={content} initialGlobalData={site} locale={locale} globalSlug={payloadGlobalSlug} />

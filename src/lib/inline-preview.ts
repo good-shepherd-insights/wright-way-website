@@ -1,4 +1,5 @@
 import { ready, isLivePreviewEvent, mergeData, type CollectionPopulationRequestHandler } from "@payloadcms/live-preview";
+import { resolveTokens } from "@good-shepherd-insights/payload-plugin-services/render";
 import type { SiteGlobals, Page } from "./payload";
 
 // Frontend half of the click-to-edit bridge (see the CMS repo's src/admin/InlinePreviewBridge.tsx
@@ -32,11 +33,14 @@ interface InlinePreviewOptions {
   initialData: SiteGlobals | Page;
   locale: string;
   globalSlug: string;
-  collection?: "globals" | "pages";
+  // "globals", "pages" or a service type (payload-plugin-services).
+  collection?: string;
+  // A previewed global whose sections the page shows (a service type's globals).
+  documentGlobal?: string;
   initialGlobalData?: SiteGlobals;
 }
 
-export function initInlinePreview({ serverURL, initialData, locale, globalSlug, collection = "globals", initialGlobalData }: InlinePreviewOptions) {
+export function initInlinePreview({ serverURL, initialData, locale, globalSlug, collection = "globals", documentGlobal, initialGlobalData }: InlinePreviewOptions) {
   const embedded = window.parent !== window || Boolean(window.opener);
   if (!embedded) return;
 
@@ -103,7 +107,11 @@ export function initInlinePreview({ serverURL, initialData, locale, globalSlug, 
   // document's sections at components.N.component.sections.M, so the path is
   // rewritten to match the data for reads and saves.
   const unwrapComponentPath = (path: string) => path.replace(/^components\.(\d+)\.component\.(\d+)\./, "components.$1.component.sections.$2.");
-  const getLiveValue = (path: string) => getPath(globalFor(path), unwrapComponentPath(path));
+  // Service entries' sections may hold {field} placeholders, filled from the entry.
+  const getLiveValue = (path: string) => {
+    const value = getPath(globalFor(path), unwrapComponentPath(path));
+    return typeof value === "string" && path.startsWith("sections.") ? resolveTokens(value, liveData as Record<string, unknown>) : value;
+  };
 
   const patchDOM = () => {
     document.querySelectorAll<HTMLElement>("[data-inline-edit]").forEach((el) => {
@@ -169,16 +177,22 @@ export function initInlinePreview({ serverURL, initialData, locale, globalSlug, 
     const { collectionSlug, globalSlug: incomingGlobalSlug, data } = event.data as {
       collectionSlug?: string;
       globalSlug?: string;
-      data?: unknown;
+      data?: Partial<SiteGlobals | Page>;
     };
+    if (!data) return;
 
-    if (collection === "pages" && collectionSlug === "pages") {
+    if (collection !== "globals" && collectionSlug === collection) {
       liveData = await mergeData({ serverURL: resolvedServerURL, collectionSlug, depth: 1, incomingData: data, initialData: liveData, locale, requestHandler });
       patchDOM();
     }
 
+    if (documentGlobal && incomingGlobalSlug === documentGlobal) {
+      liveData = await mergeData({ serverURL: resolvedServerURL, globalSlug: incomingGlobalSlug, depth: 1, incomingData: data, initialData: liveData, locale, requestHandler });
+      patchDOM();
+    }
+
     if (globalData && incomingGlobalSlug === globalSlug) {
-      globalData = await mergeData({ serverURL: resolvedServerURL, globalSlug: incomingGlobalSlug, depth: 1, incomingData: data, initialData: globalData, locale, requestHandler });
+      globalData = await mergeData({ serverURL: resolvedServerURL, globalSlug: incomingGlobalSlug, depth: 1, incomingData: data as Partial<SiteGlobals>, initialData: globalData, locale, requestHandler });
       patchDOM();
     }
   };
@@ -188,7 +202,11 @@ export function initInlinePreview({ serverURL, initialData, locale, globalSlug, 
   const handlePayloadPreview = (event: MessageEvent<{ type?: string; collectionSlug?: string; data?: SiteGlobals | Page; globalSlug?: string }>) => {
     const parentWindow = window.parent !== window ? window.parent : window.opener;
     if (event.source !== parentWindow || event.data?.type !== "payload-live-preview" || !event.data.data) return;
-    if (collection === "pages" && event.data.collectionSlug === "pages") {
+    if (collection !== "globals" && event.data.collectionSlug === collection) {
+      liveData = event.data.data;
+      patchDOM();
+    }
+    if (documentGlobal && event.data.globalSlug === documentGlobal) {
       liveData = event.data.data;
       patchDOM();
     }
@@ -202,7 +220,7 @@ export function initInlinePreview({ serverURL, initialData, locale, globalSlug, 
   // Only fields of the page open in the admin are editable, and an edit goes
   // into that page's admin form. Navbar/footer text belongs to other documents
   // (global components) and is edited by opening those.
-  const isPageField = (path: string) => collection === "pages" && path.startsWith("sections.");
+  const isPageField = (path: string) => (collection !== "globals" || Boolean(documentGlobal)) && path.startsWith("sections.");
   const sendToForm = (path: string, value: string) => {
     const parentWindow = window.parent !== window ? window.parent : window.opener;
     parentWindow?.postMessage({ type: "payload-inline-edit", path, value }, resolvedServerURL);

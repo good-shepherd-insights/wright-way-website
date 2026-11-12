@@ -50,6 +50,18 @@ const cmsOrigin = requiredOrigin('CMS_ORIGIN');
 const siteOrigin = requiredOrigin('SITE_ORIGIN');
 const { locales, defaultLocale } = await discoverLocales(cmsOrigin);
 
+/** Paths the CMS marks as not indexed (payload-plugin-services); left out of the sitemap.
+ *  @param {string} cmsOrigin
+ *  @returns {Promise<Set<string>>} */
+async function discoverNoindexPaths(cmsOrigin) {
+  const res = await fetch(`${cmsOrigin}/api/payload-plugin-services/paths`, { signal: AbortSignal.timeout(15000) });
+  if (res.status === 404) return new Set(); // CMS without the services plugin
+  if (!res.ok) throw new Error(`Failed to read page paths from Payload: ${res.status} ${res.statusText}`);
+  const paths = /** @type {{ path: string, index: boolean }[]} */ (await res.json());
+  return new Set(paths.filter((p) => !p.index).map((p) => p.path));
+}
+const noindexPaths = await discoverNoindexPaths(cmsOrigin);
+
 // https://astro.build/config
 export default defineConfig({
   site: siteOrigin,
@@ -63,6 +75,7 @@ export default defineConfig({
   },
   integrations: [
     sitemap({
+      filter: (page) => !noindexPaths.has(new URL(page).pathname.replace(/\/$/, '')),
       i18n: {
         defaultLocale,
         locales: Object.fromEntries(locales.map((locale) => [locale, locale])),
