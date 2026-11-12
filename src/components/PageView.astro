@@ -19,7 +19,7 @@ interface Props {
   documentGlobal?: string;
   // Keep this page out of search results ("noindex, follow").
   noindex?: boolean;
-  // Meta description (pages have none yet; service pages set it in the CMS).
+  // Meta description of a service page (pages use their metadata.description).
   description?: string;
   // A service in a service area: its Service structured data.
   service?: ServicePage["service"];
@@ -28,6 +28,8 @@ interface Props {
 const { locale, page: content } = Astro.props;
 const site = Astro.props.site ?? await getSiteGlobals(locale);
 const title = content.metadata.titleTemplate.replace("{title}", content.title);
+// Never the title: with no description set, none is published.
+const description = (Astro.props.description ?? content.metadata.description)?.trim() || undefined;
 // Real, standard skip-navigation link text — not CMS content. The
 // SiteGlobals "accessibility" group this used to read from had 4 of its 5
 // fields entirely unused anywhere in this codebase and was removed; this
@@ -51,11 +53,11 @@ const globalSectionEntries = site.components.flatMap((entry, componentIndex) => 
 });
 const siteOrigin = Astro.site ?? Astro.url;
 const jsonLd = buildSiteGraph({
-  page: site,
+  site,
   canonical: new URL(Astro.url.pathname, siteOrigin).toString(),
   baseUrl: new URL("/", siteOrigin).toString(),
   title,
-  description: Astro.props.description ?? content.title,
+  description,
   locale,
   // The page's sections plus its sitewide ones (navbar, footer…).
   sections: [...content.sections, ...globalSectionEntries.map(({ section }) => section)],
@@ -71,7 +73,7 @@ const navbarEntries = globalSectionEntries
 const footerEntries = globalSectionEntries.filter(({ section }) => section.blockType !== "navbar");
 ---
 
-<Layout title={title} description={Astro.props.description ?? content.title} locale={locale} favicon={site.brand.favicon?.url} image={site.brand.ogImage?.url ?? site.brand.logo?.url} imageAlt={(site.brand.ogImage ? site.brand.ogImage.alt : site.brand.logoAlt) ?? ""} jsonLd={jsonLd} noindex={Astro.props.noindex}>
+<Layout title={title} description={description} locale={locale} favicon={site.brand.favicon?.url} image={site.brand.ogImage?.url ?? site.brand.logo?.url} imageAlt={(site.brand.ogImage ? site.brand.ogImage.alt : site.brand.logoAlt) ?? ""} jsonLd={jsonLd} noindex={Astro.props.noindex}>
   <Fragment slot="navbar">
     {skipToContentLabel && <a class="skip-link" href="#main-content">{skipToContentLabel}</a>}
     {navbarEntries.map(({ componentIndex, sectionIndex, section }) => {
