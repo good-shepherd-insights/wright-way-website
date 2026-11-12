@@ -1,13 +1,17 @@
 ---
-// Live preview of the latest draft of one page, rendered on request (the only
-// route that is). The CMS links here with the page slug, locale and the editor's
+// Live preview of the latest draft of one page, service entry, service-in-area
+// page or globals design, rendered on request (the only route that is). The
+// CMS links here with the collection, slug or id, locale and the editor's
 // login token; see getPreview in src/lib/payload.ts. Never indexed.
 export const prerender = false;
 import PageView from "../components/PageView.astro";
-import { getPreview } from "../lib/payload";
+import { getGlobalPreview, getPreview } from "../lib/payload";
+import { getServiceIndex, toServicePage } from "../lib/services";
 
 const params = Astro.url.searchParams;
-const result = await getPreview(params.get("slug"), params.get("locale"), params.get("token"));
+const result = params.get("global")
+  ? await getGlobalPreview(params.get("global"), params.get("locale"), params.get("token"))
+  : await getPreview({ collection: params.get("collection") ?? "pages", id: params.get("id"), slug: params.get("slug"), locale: params.get("locale"), token: params.get("token") });
 if (!result.ok) {
   // Fixed UI chrome, not CMS content.
   const message = result.reason === "expired"
@@ -18,6 +22,8 @@ if (!result.ok) {
     { status: result.reason === "expired" ? 401 : 502, headers: { "Content-Type": "text/html; charset=utf-8", "X-Robots-Tag": "noindex" } },
   );
 }
+const service = result.doc ? toServicePage(result.collection!, result.doc, await getServiceIndex()) : null;
+const page = service?.page ?? result.page!;
 Astro.response.headers.set("X-Robots-Tag", "noindex");
 ---
-<PageView locale={result.locale} slug={result.page.slug} page={result.page} site={result.site} />
+<PageView locale={result.locale} slug={page.slug} page={page} site={result.site} collection={result.collection} documentGlobal={result.global} noindex={true} service={service?.service} description={service?.description} />

@@ -106,7 +106,7 @@ export async function getSiteGlobals(locale: string): Promise<SiteGlobals> {
   return absolutizeSiteChromeUrls(site);
 }
 
-function absolutizePageMediaUrls(page: Page): Page {
+export function absolutizePageMediaUrls(page: Page): Page {
   for (const section of page.sections) {
     absolutizeMediaUrls(section);
   }
@@ -186,11 +186,12 @@ export async function getPage(slug: string, locale: string): Promise<Page | null
 // editor's login token that the CMS put in the preview URL. Reports why it
 // failed so the editor sees a clear message.
 export type PreviewResult =
-  | { ok: true; locale: string; page: Page; site: SiteGlobals }
+  // `page` for pages and globals designs; `doc` (raw) for a services collection, built by services.ts.
+  | { ok: true; collection?: string; global?: string; locale: string; page?: Page; doc?: Page & Record<string, unknown>; site: SiteGlobals }
   | { ok: false; reason: "expired" | "unavailable" };
 
-export async function getPreview(slug: string | null, locale: string | null, token: string | null): Promise<PreviewResult> {
-  if (!slug || !locale || !token) return { ok: false, reason: "expired" };
+export async function getPreview({ collection, id, slug, locale, token }: { collection: string | null; id?: string | null; slug?: string | null; locale: string | null; token: string | null }): Promise<PreviewResult> {
+  if (!collection || !PAGE_SLUG_PATTERN.test(collection) || !(slug || (id && /^[A-Za-z0-9-]+$/.test(id))) || !locale || !token) return { ok: false, reason: "expired" };
   const headers = { Authorization: `JWT ${token}` };
   const query = (depth: string) => new URLSearchParams({ draft: "true", depth, locale, "fallback-locale": "none" });
   try {
@@ -201,14 +202,41 @@ export async function getPreview(slug: string | null, locale: string | null, tok
     const me = await meRes.json() as { user?: unknown };
     if (!me.user) return { ok: false, reason: "expired" };
     const [pageRes, siteRes] = await Promise.all([
-      fetch(`${cmsOrigin}/api/pages?${query("1")}&${new URLSearchParams({ "where[slug][equals]": slug, limit: "1" })}`, { headers }),
+      fetch(`${cmsOrigin}/api/${collection}?${query("1")}&${new URLSearchParams(id ? { "where[id][equals]": id, limit: "1" } : { "where[slug][equals]": slug!, limit: "1" })}`, { headers }),
       fetch(`${cmsOrigin}/api/globals/${globalSlug}?${query("2")}`, { headers }),
     ]);
     if ([pageRes.status, siteRes.status].some((status) => status === 401 || status === 403)) return { ok: false, reason: "expired" };
     if (!pageRes.ok || !siteRes.ok) return { ok: false, reason: "unavailable" };
-    const page = ((await pageRes.json()) as { docs?: Page[] }).docs?.[0];
-    if (!page) return { ok: false, reason: "unavailable" };
-    return { ok: true, locale, page: absolutizePageMediaUrls(page), site: absolutizeSiteChromeUrls(await siteRes.json()) };
+    const doc = ((await pageRes.json()) as { docs?: Page[] }).docs?.[0];
+    if (!doc) return { ok: false, reason: "unavailable" };
+    const site = absolutizeSiteChromeUrls(await siteRes.json());
+    return collection === "pages"
+      ? { ok: true, collection, locale, page: absolutizePageMediaUrls(doc), site }
+      : { ok: true, collection, locale, doc: doc as Page & Record<string, unknown>, site };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+// Preview of a service type's globals (its URL prefix and page design): the
+// latest draft design rendered as a page, placeholders left as written.
+export async function getGlobalPreview(global: string | null, locale: string | null, token: string | null): Promise<PreviewResult> {
+  if (!global || !PAGE_SLUG_PATTERN.test(global) || !locale || !token) return { ok: false, reason: "expired" };
+  const headers = { Authorization: `JWT ${token}` };
+  const query = (depth: string) => new URLSearchParams({ draft: "true", depth, locale, "fallback-locale": "none" });
+  try {
+    const meRes = await fetch(`${cmsOrigin}/api/users/me`, { headers });
+    if (!meRes.ok) return { ok: false, reason: "unavailable" };
+    if (!((await meRes.json()) as { user?: unknown }).user) return { ok: false, reason: "expired" };
+    const [designRes, siteRes] = await Promise.all([
+      fetch(`${cmsOrigin}/api/globals/${global}?${query("1")}`, { headers }),
+      fetch(`${cmsOrigin}/api/globals/${globalSlug}?${query("2")}`, { headers }),
+    ]);
+    if ([designRes.status, siteRes.status].some((status) => status === 401 || status === 403)) return { ok: false, reason: "expired" };
+    if (!designRes.ok || !siteRes.ok) return { ok: false, reason: "unavailable" };
+    const design = await designRes.json() as { sections?: PageSection[] };
+    const page: Page = { id: global, slug: global, title: global, metadata: { titleTemplate: "{title}" }, sections: design.sections ?? [] };
+    return { ok: true, global, locale, page: absolutizePageMediaUrls(page), site: absolutizeSiteChromeUrls(await siteRes.json()) };
   } catch {
     return { ok: false, reason: "unavailable" };
   }

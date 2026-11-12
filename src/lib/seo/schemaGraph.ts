@@ -17,6 +17,7 @@ export function buildSiteGraph({
   description,
   locale,
   sections = [],
+  service,
 }: {
   page: SiteGlobals;
   canonical: string;
@@ -25,6 +26,8 @@ export function buildSiteGraph({
   description: string;
   locale: string;
   sections?: PageSection[];
+  // A service in a real place (payload-plugin-services pair page).
+  service?: { name: string; serviceType: string; areaServed: { name: string; kind?: string; county?: string; geoid?: string } };
 }) {
   const ids = buildSchemaIds(canonical, baseUrl);
 
@@ -32,6 +35,23 @@ export function buildSiteGraph({
     buildWebsiteSchema(page, ids),
     buildOrganizationSchema(page, ids),
     buildWebPageSchema({ ids, name: title, description, inLanguage: locale }),
-    ...buildSectionNodes(sections, ids, title),
+    // A page's own Service (a service in a place) replaces one derived from its blocks.
+    ...buildSectionNodes(sections, ids, title).filter((node) => !(service && node && (node as { "@type"?: string })["@type"] === "Service")),
+    service && {
+      "@type": "Service",
+      "@id": `${ids.canonical}#service`,
+      name: service.name,
+      serviceType: service.serviceType,
+      provider: { "@id": ids.organization },
+      url: ids.canonical,
+      areaServed: {
+        "@type": service.areaServed.kind === "county" ? "AdministrativeArea" : service.areaServed.kind === "city" ? "City" : "Place",
+        name: service.areaServed.name,
+        ...(service.areaServed.county && service.areaServed.kind !== "county"
+          ? { containedInPlace: { "@type": "AdministrativeArea", name: service.areaServed.county } }
+          : {}),
+        ...(service.areaServed.geoid ? { identifier: { "@type": "PropertyValue", propertyID: "US Census GEOID", value: service.areaServed.geoid } } : {}),
+      },
+    },
   ]);
 }
