@@ -57,7 +57,10 @@ const jsonLd = buildSiteGraph({
   title,
   description: Astro.props.description ?? content.title,
   locale,
-  sections: content.sections,
+  // The page's sections plus its sitewide ones (navbar, footer…).
+  sections: [...content.sections, ...globalSectionEntries.map(({ section }) => section)],
+  // Service and service-area pages (payload-plugin-services types) are about a service.
+  isServicePage: Boolean(Astro.props.collection && Astro.props.collection !== "pages"),
   service: Astro.props.service,
 });
 // The navbar's service areas menu lists the published service areas.

@@ -5,4 +5,5 @@ minimumReleaseAgeExclude:
   - '@good-shepherd-insights/wright-way-components@0.1.4'
   - '@astrojs/vercel@11.0.21'
   - '@good-shepherd-insights/wright-way-components@0.1.5'
+  - '@good-shepherd-insights/wright-way-components@0.1.6'
   - '@good-shepherd-insights/payload-plugin-services@0.1.0'
