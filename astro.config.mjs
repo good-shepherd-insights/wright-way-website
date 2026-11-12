@@ -75,7 +75,11 @@ export default defineConfig({
   },
   integrations: [
     sitemap({
-      filter: (page) => !noindexPaths.has(new URL(page).pathname.replace(/\/$/, '')),
+      // Not indexed in the CMS, or the editors' on-request preview route.
+      filter: (page) => {
+        const path = new URL(page).pathname.replace(/\/$/, '');
+        return path !== '/preview' && !noindexPaths.has(path);
+      },
       i18n: {
         defaultLocale,
         locales: Object.fromEntries(locales.map((locale) => [locale, locale])),
