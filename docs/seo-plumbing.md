@@ -38,8 +38,15 @@ description/social-image fields here.
 sourced `hero.subhead`/`footer.tagline` (removed tenant fields); the
 builders currently emit no description until a project supplies its own.
 
-No BreadcrumbList — this site has one route per locale (the home page
-itself), and the skill explicitly exempts the home page from needing one.
+Everything else comes from the page's sections: each component in
+`@good-shepherd-insights/website-components` that maps to schema.org exports
+`jsonLd` (BreadcrumbList, FAQPage, service description/areas/audiences/real
+prices, `makesOffer` service lists, `primaryImageOfPage`), and
+`schemaGraph.ts` merges them via `collectJsonLd` without naming any
+component. Pages from payload-plugin-services get a Service node holding
+the service facts (`mainEntity` of the WebPage); on other pages only the
+areas served are kept, on the Organization. Placeholder content produces
+nothing.
 
 ## Sitemap / robots
 
