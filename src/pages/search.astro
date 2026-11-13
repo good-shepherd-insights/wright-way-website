@@ -1,0 +1,22 @@
+---
+// Site search, rendered on request: the CMS page holding the search results
+// block (its labels are CMS-owned), filled with the matches for ?q=.
+export const prerender = false;
+import PageView from "../components/PageView.astro";
+import { i18n } from "astro:config/client";
+import { getPages } from "../lib/payload";
+import { searchSite } from "../lib/search";
+
+if (!i18n) throw new Error("astro:config/client has no i18n config — check astro.config.mjs's i18n block.");
+const { defaultLocale } = i18n;
+const page = (await getPages(defaultLocale)).find((p) => p.sections.some((s) => s.blockType === "searchResults"));
+if (!page) return new Response(null, { status: 404 });
+
+const query = (Astro.url.searchParams.get("q") ?? "").trim().slice(0, 100);
+const found = query ? await searchSite(query, defaultLocale) : { total: 0, results: [] };
+const sections = page.sections.map((s) => (s.blockType === "searchResults" ? { ...s, query, total: found.total, results: found.results } : s));
+// Result pages stay out of search engines; the CDN keeps each query briefly.
+Astro.response.headers.set("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=600");
+---
+
+<PageView locale={defaultLocale} slug={page.slug} page={{ ...page, sections }} noindex={query !== ""} />

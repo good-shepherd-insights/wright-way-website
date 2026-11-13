@@ -10,7 +10,8 @@ export async function getStaticPaths() {
   for (const locale of locales) {
     const pages = await getPages(locale.code);
     for (const page of pages) {
-      if (page.slug !== "home") paths.push({ params: { locale: locale.code, slug: page.slug } });
+      // The search page is served on request by search.astro.
+      if (page.slug !== "home" && !page.sections.some((s) => s.blockType === "searchResults")) paths.push({ params: { locale: locale.code, slug: page.slug } });
     }
   }
   return paths;
