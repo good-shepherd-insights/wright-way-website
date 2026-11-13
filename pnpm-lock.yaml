@@ -21,8 +21,8 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0(@payloadcms/ui@3.93.0(@types/react@19.3.0)(monaco-editor@0.57.0)(next@16.4.6(@babel/core@7.29.7)(@types/node@24.13.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(payload@3.92.1(graphql@16.14.2)(typescript@6.0.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3))(payload@3.92.1(graphql@16.14.2)(typescript@6.0.3))(react@19.3.0)
       '@good-shepherd-insights/website-components':
-        specifier: npm:@good-shepherd-insights/wright-way-components@^0.1.10
-        version: '@good-shepherd-insights/wright-way-components@0.1.10(payload@3.92.1(graphql@16.14.2)(typescript@6.0.3))(react@19.3.0)'
+        specifier: npm:@good-shepherd-insights/wright-way-components@^0.1.13
+        version: '@good-shepherd-insights/wright-way-components@0.1.13(payload@3.92.1(graphql@16.14.2)(typescript@6.0.3))(react@19.3.0)'
       '@payloadcms/live-preview':
         specifier: ^3.88.0
         version: 3.88.0
@@ -643,8 +643,8 @@ packages:
       payload: ^3.88.0
       react: ^19.0.0
 
-  '@good-shepherd-insights/wright-way-components@0.1.10':
-    resolution: {integrity: sha512-cc48R7u7pTZI6OAW44sgv4UUzlZmYKjTbMF+1MzVmkWHz+YH6xnJ5ST81BFJgfkRVny6r5EspgJJTCSKVxpdMg==, tarball: https://npm.pkg.github.com/download/@good-shepherd-insights/wright-way-components/0.1.10/f21deb0014ef09908778c75eefa65579bef6094f}
+  '@good-shepherd-insights/wright-way-components@0.1.13':
+    resolution: {integrity: sha512-jY/CPU7q7ssqGexLEfdvL8fNiW+WwXI4t6G2sDAI/+eoVe2nwYsXbzsk454rZxn6AaPrLHbvBGO5ef9DOO9UDg==, tarball: https://npm.pkg.github.com/download/@good-shepherd-insights/wright-way-components/0.1.13/7063f8234d271649915bf13f669c218a1cdcbe5f}
     engines: {node: '>=20.9.0', pnpm: '>=9'}
     peerDependencies:
       payload: ^3.88.0
@@ -3983,7 +3983,7 @@ snapshots:
       payload: 3.92.1(graphql@16.14.2)(typescript@6.0.3)
       react: 19.3.0
 
-  '@good-shepherd-insights/wright-way-components@0.1.10(payload@3.92.1(graphql@16.14.2)(typescript@6.0.3))(react@19.3.0)':
+  '@good-shepherd-insights/wright-way-components@0.1.13(payload@3.92.1(graphql@16.14.2)(typescript@6.0.3))(react@19.3.0)':
     dependencies:
       payload: 3.92.1(graphql@16.14.2)(typescript@6.0.3)
       react: 19.3.0
