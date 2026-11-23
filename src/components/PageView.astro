@@ -90,6 +90,8 @@ const footerEntries = globalSectionEntries.filter(({ section }) => section.block
     <main id="main-content" tabindex="-1">
       {content.sections.map((section, index) => {
         const prefix = `sections.${index}`;
+        // Nothing to show: no reviews match or were picked.
+        if (section.blockType === "reviews" && section.show && !(Array.isArray(section.reviews) && section.reviews.length)) return null;
         if (isSharedSection(section)) return <SectionRenderer section={section} pathPrefix={prefix} />;
         return (
           <section data-section={section.blockType} data-section-index={index}>
