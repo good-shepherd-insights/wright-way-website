@@ -1,5 +1,6 @@
 import type { ServicePath, ServiceTypeRoute } from "@good-shepherd-insights/payload-plugin-services";
 import { resolveTokens, servicePath } from "@good-shepherd-insights/payload-plugin-services/render";
+import { withReviews } from "./reviews";
 import { absolutizePageMediaUrls, cmsOrigin, PAGE_SLUG_PATTERN, type Page, type PageSection } from "./payload";
 
 // Pages from payload-plugin-services: entries of owner-defined types (e.g.
@@ -128,13 +129,19 @@ function linkSections(collection: string, doc: Doc, index: ServiceIndex): PageSe
   return sections;
 }
 
+/** Its reviews sections, filled for the service and the place the page is about. */
+export async function withServiceReviews(service: ServicePage, doc: Doc, locale: string): Promise<ServicePage> {
+  const subjects = [doc, asDoc(doc.parent), asDoc(doc.child)].flatMap((entry) => (entry ? [entry.title, entry.place?.name ?? ""] : []));
+  return { ...service, page: { ...service.page, sections: await withReviews(service.page.sections, locale, subjects) } };
+}
+
 /** A published page of a services type, fetched fresh (the route only lists paths). */
 export async function getServicePage(collection: string, id: string, locale: string): Promise<ServicePage | null> {
   if (!PAGE_SLUG_PATTERN.test(collection) || !PAGE_SLUG_PATTERN.test(locale) || !/^[A-Za-z0-9-]+$/.test(id)) return null;
   const index = await getServiceIndex();
   const params = new URLSearchParams({ depth: "1", locale, "fallback-locale": "none" });
   const doc = await fetchJson<Doc>(`/api/${collection}/${encodeURIComponent(id)}?${params}`);
-  return doc ? toServicePage(collection, doc, index) : null;
+  return doc ? withServiceReviews(toServicePage(collection, doc, index), doc, locale) : null;
 }
 
 /**

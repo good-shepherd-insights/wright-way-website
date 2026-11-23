@@ -1,3 +1,5 @@
+import { withReviews } from "./reviews";
+
 // Mirrors SiteGlobals / Pages from the Payload backend's generated
 // payload-types.ts, narrowed to what the page consumes. getSiteGlobals
 // fetches with depth=2 so curated component relationships resolve to their
@@ -197,7 +199,7 @@ async function fetchPages(locale: string, slug?: string): Promise<Page[]> {
       throw new Error(`Published Page "${page.slug}" is incomplete for locale "${locale}".`);
     }
   }
-  return translatedPages.map(absolutizePageMediaUrls);
+  return Promise.all(translatedPages.map(async (page) => ({ ...absolutizePageMediaUrls(page), sections: await withReviews(page.sections, locale) })));
 }
 
 export async function getPages(locale: string): Promise<Page[]> {

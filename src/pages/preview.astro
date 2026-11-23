@@ -6,7 +6,8 @@
 export const prerender = false;
 import PageView from "../components/PageView.astro";
 import { getGlobalPreview, getPreview } from "../lib/payload";
-import { getServiceIndex, toServicePage } from "../lib/services";
+import { withReviews } from "../lib/reviews";
+import { getServiceIndex, toServicePage, withServiceReviews } from "../lib/services";
 
 const params = Astro.url.searchParams;
 const result = params.get("global")
@@ -22,8 +23,8 @@ if (!result.ok) {
     { status: result.reason === "expired" ? 401 : 502, headers: { "Content-Type": "text/html; charset=utf-8", "X-Robots-Tag": "noindex" } },
   );
 }
-const service = result.doc ? toServicePage(result.collection!, result.doc, await getServiceIndex()) : null;
-const page = service?.page ?? result.page!;
+const service = result.doc ? await withServiceReviews(toServicePage(result.collection!, result.doc, await getServiceIndex()), result.doc, result.locale) : null;
+const page = service?.page ?? { ...result.page!, sections: await withReviews(result.page!.sections, result.locale) };
 Astro.response.headers.set("X-Robots-Tag", "noindex");
 ---
 <PageView locale={result.locale} slug={page.slug} page={page} site={result.site} collection={result.collection} documentGlobal={result.global} noindex={true} service={service?.service} description={service?.description} />
